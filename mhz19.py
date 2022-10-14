@@ -46,18 +46,18 @@ class MHZ19:
             self.uart.read(1)
         self.uart.deinit()
 
-    def _send_comand(self, byte2:bytes, byte3:bytes = b"\x00") -> None:
+    def _send_comand(self, byte2:bytes, byte3:bytes = b"\x00") -> bool:
         command = b"\xff\x01" + byte2 + byte3 + b"\x00\x00\x00\x00"
-        self.uart.write(command + self.crc8(command).to_bytes(1, "big"))
+        return self.uart.write(command + self.crc8(command).to_bytes(1, "big")) == 9
 
     def disable_self_calibration(self) -> bool:
-        return self._send_comand(b"\x79", b"\x00") == 9
+        return self._send_comand(b"\x79", b"\x00")
 
     def enable_self_calibration(self) -> bool:
-        return self._send_comand(b"\x79", b"\xA0") == 9
+        return self._send_comand(b"\x79", b"\xA0")
 
     def zero_point_calibration(self) -> bool:
-        return self._send_comand(b"\x87") == 9
+        return self._send_comand(b"\x87")
 
     def get_data(self) -> int:
         self.uart.write(b"\xff\x01\x86\x00\x00\x00\x00\x00\x79")
