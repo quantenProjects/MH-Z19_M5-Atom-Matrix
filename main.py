@@ -33,13 +33,14 @@ class Display:
             return (0, 1, 0)
         elif self.state.endswith("off"):
             return (1, 0, 0)
-        elif self.state.endswith("on"):
+        elif self.state.endswith("cali"):
             return (0, 0, 1)
         return (0,0,0)
 
     def set_state(self, state):
         self.state = state
         self._reset_ticks()
+        display.update()
 
     def update(self):
         if self.state == "boot":
@@ -100,22 +101,64 @@ print("warmup completed")
 display.set_state("display")
 
 failed_readings = 0
+last_reading = time.ticks_ms()
 
 while True:
-    if sensor.get_data() == 1:
-        print("got results:")
-        print(sensor.ppm)
-        print(sensor.temp)
-        print(sensor.co2status)
-        display.ppm = sensor.ppm
-        failed_readings = 0
-    else:
-        failed_readings += 1
-        if failed_readings > 5:
-            display.ppm = -1
-        print("read not successful")
-    print("")
+    if time.ticks_diff(time.ticks_ms(), last_reading) > 1000:
+        if sensor.get_data() == 1:
+            print("got results:")
+            print(sensor.ppm)
+            print(sensor.temp)
+            print(sensor.co2status)
+            display.ppm = sensor.ppm
+            failed_readings = 0
+        else:
+            failed_readings += 1
+            if failed_readings > 5:
+                display.ppm = -1
+            print("read not successful")
+        print("")
+        last_reading = time.ticks_ms()
     # TODO implement button and calibration stuff
+    if not matrix.get_button_status():
+        in_menu_since = time.ticks_ms()
+        state = -1
+        while time.ticks_diff(time.ticks_ms(), in_menu_since) < 15000:
+            if not matrix.get_button_status():
+                pressed_since = time.ticks_ms()
+                while not matrix.get_button_status() and time.ticks_diff(time.ticks_ms(), pressed_since) < 2000:
+                    time.sleep(0.1)
+                if time.ticks_diff(time.ticks_ms(), pressed_since) >= 2000:
+                    if state == -1:
+                        state = 0
+                    elif state == 0:
+                        # TODO cali
+                        display.set_state("applied_cali")
+                        time.sleep(2)
+                        break
+                    elif state == 1:
+                        # TODO on
+                        display.set_state("applied_on")
+                        time.sleep(2)
+                        break
+                    elif state == 2:
+                        # TODO off
+                        display.set_state("applied_off")
+                        time.sleep(2)
+                        break
+                else:
+                    if state == -1:
+                        break
+                    else:
+                        state = (state + 1) % 3
+                if state >= 0:
+                    display.set_state(("setting_cali", "setting_on", "setting_off")[state])
+                    display.update()
+                time.sleep(1)
+                in_menu_since = time.ticks_ms()
+            time.sleep(0.1)
+        display.set_state("display")
+
     display.update()
-    time.sleep(1)
+    time.sleep(0.01)
 
