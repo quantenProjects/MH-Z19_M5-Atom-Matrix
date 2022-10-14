@@ -95,6 +95,12 @@ start = time.ticks_ms()
 while time.ticks_diff(time.ticks_ms(), start) < 6 * 1000:
     display.update()
     time.sleep(0.1)
+while sensor.ppm == 500 or sensor.ppm == 515 or sensor.ppm == -1:
+    sensor.get_data()
+    print(sensor.ppm)
+    for i in range(10):
+        display.update()
+        time.sleep(0.1)
 print("warmup completed")
 
 
@@ -106,10 +112,7 @@ last_reading = time.ticks_ms()
 while True:
     if time.ticks_diff(time.ticks_ms(), last_reading) > 1000:
         if sensor.get_data() == 1:
-            print("got results:")
-            print(sensor.ppm)
-            print(sensor.temp)
-            print(sensor.co2status)
+            print(f"time {time.ticks_ms()},  {sensor.ppm} ppm, {sensor.temp} temp, {sensor.co2status} status")
             display.ppm = sensor.ppm
             failed_readings = 0
         else:
@@ -117,7 +120,6 @@ while True:
             if failed_readings > 5:
                 display.ppm = -1
             print("read not successful")
-        print("")
         last_reading = time.ticks_ms()
     # TODO implement button and calibration stuff
     if not matrix.get_button_status():

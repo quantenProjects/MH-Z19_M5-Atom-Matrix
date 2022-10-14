@@ -33,7 +33,7 @@ class MHZ19:
         self.tx = tx
         self.rx = rx
         self.start()
-        self.ppm = 0
+        self.ppm = -1
         self.temp = 0
         self.co2status = 0
 
