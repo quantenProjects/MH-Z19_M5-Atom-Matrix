@@ -27,17 +27,19 @@ import time
 import sys
 
 
-class mhz19:
-    def __init__(self,  uart_no):
+class MHZ19:
+    def __init__(self,  uart_no, tx, rx):
         self.uart_no = uart_no
+        self.tx = tx
+        self.rx = rx
         self.start()
         self.ppm = 0
         self.temp = 0
         self.co2status = 0
 
     def start(self):
-        self.uart = UART(self.uart_no, 9600)
-        self.uart.init(9600, bits=8, parity=None, stop=1, timeout=10)
+        self.uart = UART(self.uart_no, 9600, tx=self.tx, rx=self.rx)
+        self.uart.init(9600, bits=8, parity=None, stop=1, timeout=10, tx=self.tx, rx=self.rx)
 
     def stop(self):
         while self.uart.any():
