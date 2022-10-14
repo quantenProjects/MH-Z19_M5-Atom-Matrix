@@ -47,21 +47,25 @@ class Display:
             for i in range(len(self.np)):
                 color = self._bn((1, 1, 1) if i % 2 == 0 else (0,0,0))
                 self.np[i] = color
+        elif self.state == "error":
+            for i in range(len(self.np)):
+                color = self._bn((1, 0, 0) if i % 2 == 0 else (0,0,1))
+                self.np[i] = color
         elif self.state == "warmup":
             self._set_black()
             warmup_time = 60 * 1000
-            current_progress = len(self.np) * self._ticks() / warmup_time
+            current_progress = (len(self.np) * self._ticks() / warmup_time) % len(self.np)
             current_index = math.floor(current_progress)
             for i in range(current_index):
                 self.np[i] = self._bn((1,1,1))
             self.np[current_index] = self._bn((1,1,1), current_progress % 1)
         elif self.state == "display":
+            self._set_black()
             if self.ppm < 0:
-                for i in range(len(self.np)):
-                    color = self._bn((1,0,0) if i % 2 == 0 else (0,1,0))
+                for i in range(15):
+                    color = self._bn((1,0,0) if i % 2 == 0 else (0,1,0), additional_brightness=0.2)
                     self.np[i] = color
             else:
-                self._set_black()
                 color = (0,0,0)
                 for threshold, color_of_threshold in self.COLOR_PPM:
                     color = color_of_threshold
@@ -84,10 +88,11 @@ class Display:
 
 matrix = atom.Matrix()
 
-sensor = mhz19.MHZ19(2, tx=33, rx=23)
 display = Display(matrix._np, 20)
 display.update()
-time.sleep(2)
+time.sleep(1)
+
+sensor = mhz19.MHZ19(2, tx=33, rx=23)
 
 display.set_state("warmup")
 print("warmup")
@@ -121,7 +126,6 @@ while True:
                 display.ppm = -1
             print("read not successful")
         last_reading = time.ticks_ms()
-    # TODO implement button and calibration stuff
     if not matrix.get_button_status():
         in_menu_since = time.ticks_ms()
         state = -1
@@ -134,18 +138,27 @@ while True:
                     if state == -1:
                         state = 0
                     elif state == 0:
-                        # TODO cali
                         display.set_state("applied_cali")
+                        if not sensor.zero_point_calibration():
+                            display.set_state("error")
+                            while True:
+                                pass
                         time.sleep(2)
                         break
                     elif state == 1:
-                        # TODO on
                         display.set_state("applied_on")
+                        if not sensor.enable_self_calibration():
+                            display.set_state("error")
+                            while True:
+                                pass
                         time.sleep(2)
                         break
                     elif state == 2:
-                        # TODO off
                         display.set_state("applied_off")
+                        if not sensor.disable_self_calibration():
+                            display.set_state("error")
+                            while True:
+                                pass
                         time.sleep(2)
                         break
                 else:

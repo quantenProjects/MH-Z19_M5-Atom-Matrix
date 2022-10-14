@@ -46,7 +46,20 @@ class MHZ19:
             self.uart.read(1)
         self.uart.deinit()
 
-    def get_data(self):
+    def _send_comand(self, byte2:bytes, byte3:bytes = b"\x00") -> None:
+        command = b"\xff\x01" + byte2 + byte3 + b"\x00\x00\x00\x00"
+        self.uart.write(command + self.crc8(command).to_bytes(1, "big"))
+
+    def disable_self_calibration(self) -> bool:
+        return self._send_comand(b"\x79", b"\x00") == 9
+
+    def enable_self_calibration(self) -> bool:
+        return self._send_comand(b"\x79", b"\xA0") == 9
+
+    def zero_point_calibration(self) -> bool:
+        return self._send_comand(b"\x87") == 9
+
+    def get_data(self) -> int:
         self.uart.write(b"\xff\x01\x86\x00\x00\x00\x00\x00\x79")
         time.sleep(0.1)
         s = self.uart.read(9)
@@ -71,7 +84,7 @@ class MHZ19:
             self.co2status = ord(chr(s[5]))
             return 1
 
-    def crc8(self, a):
+    def crc8(self, a) -> int:
         crc = 0x00
         count = 1
         b = bytearray(a)
