@@ -1,11 +1,105 @@
 import mhz19
 import time
+import math
+
+import atom
+
+class Display:
+
+    COLOR_PPM = [ (500, (0,0,1)), (800, (0,1,0)), (1000, (1,1,0)), (1400, (1,0.5,0)), (100000, (1,0,0))]
+
+    def __init__(self, neopixel, brightness=1.0) -> None:
+        self.np = neopixel
+        self.state = "boot"
+        self.brightness = brightness
+        self._reset_ticks()
+        self.ppm = -1
+
+    def _reset_ticks(self) -> None:
+        self.tick_base = time.ticks_ms()
+    
+    def _ticks(self) -> float:
+        return time.ticks_diff(time.ticks_ms(), self.tick_base)
+
+    def _set_black(self) -> None:
+        for i in range(len(self.np)):
+            self.np[i] = (0,0,0)
+
+    def _bn(self, color, additional_brightness=1.0):
+        return [int(value * self.brightness * max(additional_brightness, 0)) for value in color]
+
+    def _get_settings_color(self) -> tuple[float,float,float]:
+        if self.state.endswith("on"):
+            return (0, 1, 0)
+        elif self.state.endswith("off"):
+            return (1, 0, 0)
+        elif self.state.endswith("on"):
+            return (0, 0, 1)
+        return (0,0,0)
+
+    def set_state(self, state):
+        self.state = state
+        self._reset_ticks()
+
+    def update(self):
+        if self.state == "boot":
+            for i in range(len(self.np)):
+                color = self._bn((1, 1, 1) if i % 2 == 0 else (0,0,0))
+                self.np[i] = color
+        elif self.state == "warmup":
+            self._set_black()
+            warmup_time = 60 * 1000
+            current_progress = len(self.np) * self._ticks() / warmup_time
+            current_index = math.floor(current_progress)
+            for i in range(current_index):
+                self.np[i] = self._bn((1,1,1))
+            self.np[current_index] = self._bn((1,1,1), current_progress % 1)
+        elif self.state == "display":
+            if self.ppm < 0:
+                for i in range(len(self.np)):
+                    color = self._bn((1,0,0) if i % 2 == 0 else (0,1,0))
+                    self.np[i] = color
+            else:
+                self._set_black()
+                color = (0,0,0)
+                for threshold, color_of_threshold in self.COLOR_PPM:
+                    color = color_of_threshold
+                    if threshold > self.ppm:
+                        break
+                for i in range(15):
+                    self.np[i] = self._bn(color)
+
+                hundrest_ppm = math.floor(self.ppm / 100)
+                color = (1,1,1)
+                for i in range(5):
+                    self.np[24 - i] = self._bn(color if hundrest_ppm & 2**i > 0 else (0,0,0))
+        elif self.state.startswith("setting_"):
+            self._set_black()
+            self.np[0] = self._bn(self._get_settings_color())
+        elif self.state.startswith("applied_"):
+            for i in range(len(self.np)):
+                self.np[i] = self._bn(self._get_settings_color())
+        self.np.write()
+
+matrix = atom.Matrix()
 
 sensor = mhz19.MHZ19(2, tx=33, rx=23)
+display = Display(matrix._np, 20)
+display.update()
+time.sleep(2)
 
-for i in range(60, 1, -1):
-    print("wait for warm up", i)
-    time.sleep(1)
+display.set_state("warmup")
+print("warmup")
+start = time.ticks_ms()
+while time.ticks_diff(time.ticks_ms(), start) < 6 * 1000:
+    display.update()
+    time.sleep(0.1)
+print("warmup completed")
+
+
+display.set_state("display")
+
+failed_readings = 0
 
 while True:
     if sensor.get_data() == 1:
@@ -13,8 +107,15 @@ while True:
         print(sensor.ppm)
         print(sensor.temp)
         print(sensor.co2status)
+        display.ppm = sensor.ppm
+        failed_readings = 0
     else:
+        failed_readings += 1
+        if failed_readings > 5:
+            display.ppm = -1
         print("read not successful")
     print("")
+    # TODO implement button and calibration stuff
+    display.update()
     time.sleep(1)
 
