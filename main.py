@@ -12,10 +12,10 @@ class Display:
         self.np = neopixel
         self.state = "boot"
         self.brightness = brightness
-        self._reset_ticks()
+        self.reset_ticks()
         self.ppm = -1
 
-    def _reset_ticks(self) -> None:
+    def reset_ticks(self) -> None:
         self.tick_base = time.ticks_ms()
     
     def _ticks(self) -> float:
@@ -39,7 +39,7 @@ class Display:
 
     def set_state(self, state):
         self.state = state
-        self._reset_ticks()
+        self.reset_ticks()
         display.update()
 
     def update(self):
@@ -73,6 +73,9 @@ class Display:
                         break
                 for i in range(15):
                     self.np[i] = self._bn(color)
+
+                if self._ticks() < 1000:
+                    self.np[19] = self._bn(color, additional_brightness=(1 - (self._ticks()/1000))*0.5)
 
                 hundrest_ppm = math.floor(self.ppm / 100)
                 color = (1,1,1)
@@ -115,8 +118,9 @@ failed_readings = 0
 last_reading = time.ticks_ms()
 
 while True:
-    if time.ticks_diff(time.ticks_ms(), last_reading) > 1000:
+    if time.ticks_diff(time.ticks_ms(), last_reading) > 2000:
         if sensor.get_data() == 1:
+            display.reset_ticks()
             print(f"time {time.ticks_ms()},  {sensor.ppm} ppm, {sensor.temp} temp, {sensor.co2status} status")
             display.ppm = sensor.ppm
             failed_readings = 0
