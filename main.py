@@ -1,8 +1,12 @@
 import mhz19
 import time
 import math
+import json
 
 import atom
+
+def print_status(status: str):
+    print(json.dumps({"status": status, "time": time.ticks_ms()}))
 
 class Display:
 
@@ -103,18 +107,18 @@ class SensorAndDisplay:
         if self.warmuped:
             return
         self.display.set_state("warmup")
-        print("warmup")
+        print_status("warmup")
         start = time.ticks_ms()
         while time.ticks_diff(time.ticks_ms(), start) < 6 * 1000:
             self.display.update()
             time.sleep(0.1)
         while self.sensor.ppm == 500 or self.sensor.ppm == 515 or self.sensor.ppm == -1:
             self.sensor.get_data()
-            print(self.sensor.ppm)
+            print_status("warmup, waiting 500")
             for i in range(10):
                 self.display.update()
                 time.sleep(0.1)
-        print("warmup completed")
+        print_status("warmup completed")
         self.display.set_state("display")
         self.warmuped = True
 
@@ -122,13 +126,13 @@ class SensorAndDisplay:
         if time.ticks_diff(time.ticks_ms(), self.last_reading) > 2000:
             if self.sensor.get_data() == 1:
                 self.display.reset_ticks()
-                print(f"time {time.ticks_ms()},  {sensor.ppm} ppm, {sensor.temp} temp, {sensor.co2status} status")
+                print(json.dumps({"time": time.ticks_ms(), "ppm": sensor.ppm, "temp": sensor.temp, "co2status": sensor.co2status}))
                 self.failed_readings = 0
             else:
                 self.failed_readings += 1
                 if self.failed_readings > 5:
                     self.sensor.ppm = -1
-                print("read not successful")
+                print_status("read not successful")
             self.last_reading = time.ticks_ms()
 
     def handle_button_and_display(self):
