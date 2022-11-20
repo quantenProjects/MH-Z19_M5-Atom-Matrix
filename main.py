@@ -126,7 +126,7 @@ class SensorAndDisplay:
         if time.ticks_diff(time.ticks_ms(), self.last_reading) > 2000:
             if self.sensor.get_data() == 1:
                 self.display.reset_ticks()
-                print(json.dumps({"time": time.ticks_ms(), "ppm": sensor.ppm, "temp": sensor.temp, "co2status": sensor.co2status}))
+                print(json.dumps({"time": time.ticks_ms(), "ppm": sensor.ppm, "temp": sensor.temp, "co2status": sensor.co2status, "status": "valueok"}))
                 self.failed_readings = 0
             else:
                 self.failed_readings += 1
