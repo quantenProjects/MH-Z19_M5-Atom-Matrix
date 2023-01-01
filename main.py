@@ -100,11 +100,11 @@ class Display:
         if self.state == "boot":
             for i in range(len(self.np)):
                 color = self._bn((1, 1, 1) if i % 2 == 0 else (0,0,0))
-                self.np[i] = color
+                self.np[self._rotate_index(i)] = color
         elif self.state == "error":
             for i in range(len(self.np)):
                 color = self._bn((1, 0, 0) if i % 2 == 0 else (0,0,1))
-                self.np[i] = color
+                self.np[self._rotate_index(i)] = color
         elif self.state == "warmup":
             self._set_black()
             warmup_time = 60 * 1000
@@ -137,10 +137,10 @@ class Display:
                     self.np[self._rotate_index(24 - i)] = self._bn(color if hundrest_ppm & 2**i > 0 else (0,0,0))
         elif self.state.startswith("setting_"):
             self._set_black()
-            self.np[0] = self._bn(self._get_settings_color())
+            self.np[self._rotate_index(0)] = self._bn(self._get_settings_color())
         elif self.state.startswith("applied_"):
             for i in range(len(self.np)):
-                self.np[i] = self._bn(self._get_settings_color())
+                self.np[self._rotate_index(i)] = self._bn(self._get_settings_color())
         self.np.write()
 
 class SensorAndDisplay:
