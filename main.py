@@ -1,13 +1,22 @@
 import time
 import math
 import json
+import ubinascii
 import machine
 import network
 import uasyncio as asyncio
 import atom
 
+from microdot_asyncio import Microdot
+from microdot_utemplate import render_template, init_templates
+
 from mpu6886 import MPU6886
 import mhz19
+
+init_templates("web")
+
+COLOR_PPM = [ (500, (0,0,1)), (800, (0,1,0)), (1000, (1,1,0)), (1400, (1,0.5,0)), (100000, (1,0,0))]
+COLOR_PPM_HEX = [ (500, "00C0F0", "excellent"), (800, "10D653", "good"), (1000, "FFFD13", "okay"), (1400, "FF6B0F", "bad"), (100000, "FF3C13", "terrible")]
 
 class DirectionSensor:
 
@@ -30,7 +39,6 @@ class DirectionSensor:
 
 class Display:
 
-    COLOR_PPM = [ (500, (0,0,1)), (800, (0,1,0)), (1000, (1,1,0)), (1400, (1,0.5,0)), (100000, (1,0,0))]
 
     def __init__(self, neopixel, sensor, direction_sensor, brightness=1.0) -> None:
         self.np = neopixel
@@ -120,7 +128,7 @@ class Display:
                     self.np[self._rotate_index(i)] = color
             else:
                 color = (0,0,0)
-                for threshold, color_of_threshold in self.COLOR_PPM:
+                for threshold, color_of_threshold in COLOR_PPM:
                     color = color_of_threshold
                     if threshold > self.sensor.ppm:
                         break
@@ -161,7 +169,7 @@ class SensorAndDisplay:
         self.current_status = prototype_dict | values
         print(json.dumps(self.current_status))
 
-    def warmup(self):
+    async def warmup(self):
         if self.warmuped:
             return
         self.display.set_state("warmup")
@@ -169,13 +177,13 @@ class SensorAndDisplay:
         start = time.ticks_ms()
         while time.ticks_diff(time.ticks_ms(), start) < 6 * 1000:
             self.display.update()
-            time.sleep(0.1)
+            await asyncio.sleep(0.1)
         while self.sensor.ppm == 500 or self.sensor.ppm == 515 or self.sensor.ppm == -1:
             self.sensor.get_data()
             self.update_status("warmup, waiting 500")
             for i in range(10):
                 self.display.update()
-                time.sleep(0.1)
+                await asyncio.sleep(0.1)
         self.update_status("warmup completed")
         self.display.set_state("display")
         self.warmuped = True
@@ -185,7 +193,14 @@ class SensorAndDisplay:
             if time.ticks_diff(time.ticks_ms(), self.last_reading) > 2000:
                 if self.sensor.get_data() == 1:
                     self.display.reset_ticks()
-                    self.update_status("valueok", values={"ppm": self.sensor.ppm, "temp": self.sensor.temp, "co2status": self.sensor.co2status})
+                    color = "FFFFFF"
+                    rating = ""
+                    for threshold, color_of_threshold, rating_of_threshold in COLOR_PPM_HEX:
+                        color = color_of_threshold
+                        rating = rating_of_threshold
+                        if threshold > self.sensor.ppm:
+                            break
+                    self.update_status("valueok", values={"ppm": self.sensor.ppm, "temp": self.sensor.temp, "co2status": self.sensor.co2status, "color": color, "rating": rating})
                     self.failed_readings = 0
                 else:
                     self.failed_readings += 1
@@ -196,6 +211,7 @@ class SensorAndDisplay:
             await asyncio.sleep(0.01)
 
     async def handle_button_and_display(self):
+        await self.warmup()
         while True:
             if not self.matrix.get_button_status():
                 in_menu_since = time.ticks_ms()
@@ -259,10 +275,22 @@ async def main():
     display = Display(matrix._np, sensor, direction_sensor, brightness=20)
     sd_handler = SensorAndDisplay(matrix, display, sensor)
 
+    ap = network.WLAN(network.AP_IF) # create access-point interface
+    ap.config(essid='CO2 Sensor ' + ubinascii.hexlify(machine.unique_id()).decode(), password="covidisnotover", authmode=network.AUTH_WPA_WPA2_PSK) # set the SSID of the access point
+    ap.config(max_clients=10) # set how many clients can connect to the network
+    ap.active(True)         # activate the interface
+
+    app = Microdot()
+    @app.get('/')
+    async def index(request):
+        return render_template("index.html", sd_handler.current_status), {'Content-Type': 'text/html'}
+    @app.route('/json')
+    async def json_route(request):
+        return sd_handler.current_status
+
     display.update()
     time.sleep(1)
-    sd_handler.warmup()
 
-    await asyncio.gather(sd_handler.handle_button_and_display(), sd_handler.handle_sensor())
+    await asyncio.gather(sd_handler.handle_button_and_display(), sd_handler.handle_sensor(), app.start_server(port=80))
 
 asyncio.run(main())
