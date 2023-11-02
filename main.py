@@ -1,14 +1,13 @@
-import mhz19
 import time
 import math
 import json
 import machine
-
+import network
+import uasyncio as asyncio
 import atom
-from mpu6886 import MPU6886
 
-def print_status(status: str):
-    print(json.dumps({"status": status, "time": time.ticks_ms()}))
+from mpu6886 import MPU6886
+import mhz19
 
 class DirectionSensor:
 
@@ -93,7 +92,7 @@ class Display:
     def set_state(self, state):
         self.state = state
         self.reset_ticks()
-        display.update()
+        self.update()
 
     def update(self):
         self.direction_sensor.tick()
@@ -152,105 +151,118 @@ class SensorAndDisplay:
         self.last_reading = time.ticks_ms()
         self.failed_readings = 0
         self.warmuped = False
+        self.current_status = {}
+
+
+    def update_status(self, status: str, values: Optional[dict] = None):
+        if values is None:
+            values = {}
+        prototype_dict = {"status": status, "time": time.ticks_ms()}
+        self.current_status = prototype_dict | values
+        print(json.dumps(self.current_status))
 
     def warmup(self):
         if self.warmuped:
             return
         self.display.set_state("warmup")
-        print_status("warmup")
+        self.update_status("warmup")
         start = time.ticks_ms()
         while time.ticks_diff(time.ticks_ms(), start) < 6 * 1000:
             self.display.update()
             time.sleep(0.1)
         while self.sensor.ppm == 500 or self.sensor.ppm == 515 or self.sensor.ppm == -1:
             self.sensor.get_data()
-            print_status("warmup, waiting 500")
+            self.update_status("warmup, waiting 500")
             for i in range(10):
                 self.display.update()
                 time.sleep(0.1)
-        print_status("warmup completed")
+        self.update_status("warmup completed")
         self.display.set_state("display")
         self.warmuped = True
 
-    def handle_sensor(self):
-        if time.ticks_diff(time.ticks_ms(), self.last_reading) > 2000:
-            if self.sensor.get_data() == 1:
-                self.display.reset_ticks()
-                print(json.dumps({"time": time.ticks_ms(), "ppm": sensor.ppm, "temp": sensor.temp, "co2status": sensor.co2status, "status": "valueok"}))
-                self.failed_readings = 0
-            else:
-                self.failed_readings += 1
-                if self.failed_readings > 5:
-                    self.sensor.ppm = -1
-                print_status("read not successful")
-            self.last_reading = time.ticks_ms()
+    async def handle_sensor(self):
+        while True:
+            if time.ticks_diff(time.ticks_ms(), self.last_reading) > 2000:
+                if self.sensor.get_data() == 1:
+                    self.display.reset_ticks()
+                    self.update_status("valueok", values={"ppm": self.sensor.ppm, "temp": self.sensor.temp, "co2status": self.sensor.co2status})
+                    self.failed_readings = 0
+                else:
+                    self.failed_readings += 1
+                    if self.failed_readings > 5:
+                        self.sensor.ppm = -1
+                    self.update_status("read not successful")
+                self.last_reading = time.ticks_ms()
+            await asyncio.sleep(0.01)
 
-    def handle_button_and_display(self):
-        if not self.matrix.get_button_status():
-            in_menu_since = time.ticks_ms()
-            state = -1
-            while time.ticks_diff(time.ticks_ms(), in_menu_since) < 15000:
-                if not self.matrix.get_button_status():
-                    pressed_since = time.ticks_ms()
-                    while not self.matrix.get_button_status() and time.ticks_diff(time.ticks_ms(), pressed_since) < 2000:
-                        time.sleep(0.1)
-                    if time.ticks_diff(time.ticks_ms(), pressed_since) >= 2000:
-                        if state == -1:
-                            state = 0
-                        elif state == 0:
-                            self.display.set_state("applied_cali")
-                            if not self.sensor.zero_point_calibration():
-                                self.display.set_state("error")
-                                while True:
-                                    pass
-                            time.sleep(2)
-                            break
-                        elif state == 1:
-                            self.display.set_state("applied_on")
-                            if not self.sensor.enable_self_calibration():
-                                self.display.set_state("error")
-                                while True:
-                                    pass
-                            time.sleep(2)
-                            break
-                        elif state == 2:
-                            self.display.set_state("applied_off")
-                            if not self.sensor.disable_self_calibration():
-                                self.display.set_state("error")
-                                while True:
-                                    pass
-                            time.sleep(2)
-                            break
-                    else:
-                        if state == -1:
-                            break
+    async def handle_button_and_display(self):
+        while True:
+            if not self.matrix.get_button_status():
+                in_menu_since = time.ticks_ms()
+                state = -1
+                while time.ticks_diff(time.ticks_ms(), in_menu_since) < 15000:
+                    if not self.matrix.get_button_status():
+                        pressed_since = time.ticks_ms()
+                        while not self.matrix.get_button_status() and time.ticks_diff(time.ticks_ms(), pressed_since) < 2000:
+                            time.sleep(0.1)
+                        if time.ticks_diff(time.ticks_ms(), pressed_since) >= 2000:
+                            if state == -1:
+                                state = 0
+                            elif state == 0:
+                                self.display.set_state("applied_cali")
+                                if not self.sensor.zero_point_calibration():
+                                    self.display.set_state("error")
+                                    while True:
+                                        pass
+                                time.sleep(2)
+                                break
+                            elif state == 1:
+                                self.display.set_state("applied_on")
+                                if not self.sensor.enable_self_calibration():
+                                    self.display.set_state("error")
+                                    while True:
+                                        pass
+                                time.sleep(2)
+                                break
+                            elif state == 2:
+                                self.display.set_state("applied_off")
+                                if not self.sensor.disable_self_calibration():
+                                    self.display.set_state("error")
+                                    while True:
+                                        pass
+                                time.sleep(2)
+                                break
                         else:
-                            state = (state + 1) % 3
-                    if state >= 0:
-                        self.display.set_state(("setting_cali", "setting_on", "setting_off")[state])
-                        self.display.update()
-                    time.sleep(1)
-                    in_menu_since = time.ticks_ms()
-                time.sleep(0.1)
-            self.display.set_state("display")
+                            if state == -1:
+                                break
+                            else:
+                                state = (state + 1) % 3
+                        if state >= 0:
+                            self.display.set_state(("setting_cali", "setting_on", "setting_off")[state])
+                            self.display.update()
+                        time.sleep(1)
+                        in_menu_since = time.ticks_ms()
+                    time.sleep(0.1)
+                self.display.set_state("display")
 
-        self.display.update()
+            self.display.update()
+            await asyncio.sleep(0.01)
 
 
 
-matrix = atom.Matrix()
 
-sensor = mhz19.MHZ19(2, tx=33, rx=23)
-direction_sensor = DirectionSensor(21, 25)
-display = Display(matrix._np, sensor, direction_sensor, brightness=20)
-sd_handler = SensorAndDisplay(matrix, display, sensor)
+async def main():
+    matrix = atom.Matrix()
 
-display.update()
-time.sleep(1)
-sd_handler.warmup()
+    sensor = mhz19.MHZ19(2, tx=33, rx=23)
+    direction_sensor = DirectionSensor(21, 25)
+    display = Display(matrix._np, sensor, direction_sensor, brightness=20)
+    sd_handler = SensorAndDisplay(matrix, display, sensor)
 
-while True:
-    sd_handler.handle_button_and_display()
-    sd_handler.handle_sensor()
-    time.sleep(0.01)
+    display.update()
+    time.sleep(1)
+    sd_handler.warmup()
 
+    await asyncio.gather(sd_handler.handle_button_and_display(), sd_handler.handle_sensor())
+
+asyncio.run(main())
