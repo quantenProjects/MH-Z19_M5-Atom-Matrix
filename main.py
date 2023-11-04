@@ -6,19 +6,16 @@ import network
 import uasyncio as asyncio
 import atom
 
-from microdot_asyncio import Microdot
-from microdot_utemplate import render_template, init_templates
 
 import mhz19
 
 from display import DirectionSensor, Display, COLOR_PPM_HEX
 
-init_templates("web")
 
 
-class SensorAndDisplay:
+class Application:
 
-    def __init__(self, matrix, display, sensor):
+    def __init__(self, matrix, display, sensor, webserver:bool=True):
         self.matrix = matrix
         self.display = display
         self.sensor = sensor
@@ -26,6 +23,34 @@ class SensorAndDisplay:
         self.failed_readings = 0
         self.warmuped = False
         self.current_status = {}
+        self.webserver = webserver
+
+    async def run(self):
+        if self.webserver:
+            from microdot_asyncio import Microdot
+            from microdot_utemplate import render_template, init_templates
+            init_templates("web")
+
+            ap = network.WLAN(network.AP_IF) # create access-point interface
+            ap.config(essid='CO2 Sensor ' + ubinascii.hexlify(machine.unique_id()).decode(), password="covidisnotover", authmode=network.AUTH_WPA_WPA2_PSK) # set the SSID of the access point
+            ap.config(max_clients=10) # set how many clients can connect to the network
+            ap.active(True)         # activate the interface
+
+            app = Microdot()
+            @app.get('/')
+            async def index(request):
+                return render_template("index.html", self.current_status), {'Content-Type': 'text/html'}
+            @app.route('/json')
+            async def json_route(request):
+                return self.current_status
+
+        self.display.update()
+        time.sleep(1)
+
+        if self.webserver:
+            await asyncio.gather(self.handle_button_and_display(), self.handle_sensor(), app.start_server(port=80))
+        else:
+            await asyncio.gather(self.handle_button_and_display(), self.handle_sensor())
 
 
     def update_status(self, status: str, values: Optional[dict] = None):
@@ -135,28 +160,12 @@ class SensorAndDisplay:
 
 async def main():
     matrix = atom.Matrix()
-
     sensor = mhz19.MHZ19(2, tx=33, rx=23)
     direction_sensor = DirectionSensor(21, 25)
     display = Display(matrix._np, sensor, direction_sensor, brightness=20)
-    sd_handler = SensorAndDisplay(matrix, display, sensor)
+    application = Application(matrix, display, sensor, webserver=True)
 
-    ap = network.WLAN(network.AP_IF) # create access-point interface
-    ap.config(essid='CO2 Sensor ' + ubinascii.hexlify(machine.unique_id()).decode(), password="covidisnotover", authmode=network.AUTH_WPA_WPA2_PSK) # set the SSID of the access point
-    ap.config(max_clients=10) # set how many clients can connect to the network
-    ap.active(True)         # activate the interface
+    await application.run()
 
-    app = Microdot()
-    @app.get('/')
-    async def index(request):
-        return render_template("index.html", sd_handler.current_status), {'Content-Type': 'text/html'}
-    @app.route('/json')
-    async def json_route(request):
-        return sd_handler.current_status
-
-    display.update()
-    time.sleep(1)
-
-    await asyncio.gather(sd_handler.handle_button_and_display(), sd_handler.handle_sensor(), app.start_server(port=80))
 
 asyncio.run(main())
