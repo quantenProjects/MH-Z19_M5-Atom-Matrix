@@ -50,7 +50,7 @@ class Application:
                 return self.current_status
             @app.route('/history')
             async def history(request):
-                return "\n".join(map(lambda x: str(x), self.ring_buffer.get_list()))
+                return list(map(lambda x: str(x), self.ring_buffer.get_list()))
             @app.route('/meminfo')
             async def meminfo(request):
                 free = gc.mem_free()
