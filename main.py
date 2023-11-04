@@ -12,6 +12,7 @@ import gc
 import mhz19
 
 from display import DirectionSensor, Display, COLOR_PPM_HEX
+from ringbuffer import RingBuffer
 
 
 
@@ -26,6 +27,8 @@ class Application:
         self.warmuped = False
         self.current_status = {}
         self.webserver = webserver
+        self.ring_buffer = RingBuffer(60 * 8) # every minute for 8 hours
+        self.last_ring_buffer_append = time.ticks_ms()
 
     async def run(self):
         if self.webserver:
@@ -45,6 +48,9 @@ class Application:
             @app.route('/json')
             async def json_route(request):
                 return self.current_status
+            @app.route('/history')
+            async def history(request):
+                return "\n".join(map(lambda x: str(x), self.ring_buffer.get_list()))
             @app.route('/meminfo')
             async def meminfo(request):
                 free = gc.mem_free()
@@ -106,6 +112,9 @@ class Application:
                         self.sensor.ppm = -1
                     self.update_status("read not successful")
                 self.last_reading = time.ticks_ms()
+            if time.ticks_diff(time.ticks_ms(), self.last_ring_buffer_append) > 60000:
+                self.ring_buffer.append(self.sensor.ppm)
+                self.last_ring_buffer_append = time.ticks_ms()
             await asyncio.sleep(0.01)
 
     async def handle_button_and_display(self):
