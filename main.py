@@ -29,6 +29,7 @@ class Application:
         self.webserver = webserver
         self.ring_buffer = RingBuffer(60 * 8) # every minute for 8 hours
         self.last_ring_buffer_append = time.ticks_ms()
+        self.ap = None
 
     async def run(self):
         if self.webserver:
@@ -36,10 +37,9 @@ class Application:
             from microdot_utemplate import render_template, init_templates
             init_templates("web")
 
-            ap = network.WLAN(network.AP_IF) # create access-point interface
-            ap.config(essid='CO2 Sensor ' + ubinascii.hexlify(machine.unique_id()).decode(), password="covidisnotover", authmode=network.AUTH_WPA_WPA2_PSK) # set the SSID of the access point
-            ap.config(max_clients=10) # set how many clients can connect to the network
-            ap.active(True)         # activate the interface
+            self.ap = network.WLAN(network.AP_IF) # create access-point interface
+            self.ap.config(essid='CO2 Sensor ' + ubinascii.hexlify(machine.unique_id()).decode(), password="covidisnotover", authmode=network.AUTH_WPA_WPA2_PSK) # set the SSID of the access point
+            self.ap.config(max_clients=10) # set how many clients can connect to the network
 
             app = Microdot()
             @app.route('/')
@@ -123,7 +123,7 @@ class Application:
             if not self.matrix.get_button_status():
                 in_menu_since = time.ticks_ms()
                 state = -1
-                while time.ticks_diff(time.ticks_ms(), in_menu_since) < 15000:
+                while time.ticks_diff(time.ticks_ms(), in_menu_since) < 15000: # quit menu after 15 sec
                     if not self.matrix.get_button_status():
                         pressed_since = time.ticks_ms()
                         while not self.matrix.get_button_status() and time.ticks_diff(time.ticks_ms(), pressed_since) < 2000:
@@ -155,6 +155,12 @@ class Application:
                                         pass
                                 time.sleep(2)
                                 break
+                        elif state == -1 and time.ticks_diff(time.ticks_ms(), pressed_since) >= 100:
+                            wifi_state = not self.ap.active()
+                            self.ap.active(wifi_state)
+                            self.display.set_state("wifi_on" if wifi_state else "wifi_off")
+                            time.sleep(2)
+                            break
                         else:
                             if state == -1:
                                 break

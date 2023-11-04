@@ -28,6 +28,14 @@ class DirectionSensor:
 
 class Display:
 
+    WIFI_SYMBOL = [
+            1,1,1,1,1,
+            0,0,0,0,1,
+            1,1,1,0,1,
+            0,0,1,0,1,
+            1,0,1,0,1
+            ]
+
 
     def __init__(self, neopixel, sensor, direction_sensor, brightness=1.0) -> None:
         self.np = neopixel
@@ -137,4 +145,7 @@ class Display:
         elif self.state.startswith("applied_"):
             for i in range(len(self.np)):
                 self.np[self._rotate_index(i)] = self._bn(self._get_settings_color())
+        elif self.state.startswith("wifi_"):
+            for i in range(len(self.np)):
+                self.np[self._rotate_index(i)] = self._bn(self._get_settings_color()) if self.WIFI_SYMBOL[i] else (0,0,0)
         self.np.write()
