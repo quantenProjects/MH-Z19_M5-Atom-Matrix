@@ -20,7 +20,10 @@ class DirectionSensor:
     def tick(self):
         x, y, z = self.sensor.acceleration
         if abs(z) > abs(x) and abs(z) > abs(y):
-            self.direction = 0
+            if z < 0:
+                self.direction = 0
+            else:
+                self.direction = -1
         elif abs(x) > abs(y):
             self.direction = 1 if x > 0 else 3
         else:
@@ -148,4 +151,6 @@ class Display:
         elif self.state.startswith("wifi_"):
             for i in range(len(self.np)):
                 self.np[self._rotate_index(i)] = self._bn(self._get_settings_color()) if self.WIFI_SYMBOL[i] else (0,0,0)
+        if self.direction_sensor.direction == -1:
+            self._set_black()
         self.np.write()
