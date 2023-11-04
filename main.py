@@ -6,6 +6,8 @@ import network
 import uasyncio as asyncio
 import atom
 
+import gc
+
 
 import mhz19
 
@@ -37,20 +39,25 @@ class Application:
             ap.active(True)         # activate the interface
 
             app = Microdot()
-            @app.get('/')
+            @app.route('/')
             async def index(request):
                 return render_template("index.html", self.current_status), {'Content-Type': 'text/html'}
             @app.route('/json')
             async def json_route(request):
                 return self.current_status
+            @app.route('/meminfo')
+            async def meminfo(request):
+                free = gc.mem_free()
+                alloc = gc.mem_alloc()
+                return f"{100*alloc/(free+alloc):.1f} % mem used\nused: {alloc}\nfree: {free}"
 
         self.display.update()
         time.sleep(1)
 
         if self.webserver:
-            await asyncio.gather(self.handle_button_and_display(), self.handle_sensor(), app.start_server(port=80))
+            await asyncio.gather(self.handle_gc(), self.handle_button_and_display(), self.handle_sensor(), app.start_server(port=80))
         else:
-            await asyncio.gather(self.handle_button_and_display(), self.handle_sensor())
+            await asyncio.gather(self.handle_gc(), self.handle_button_and_display(), self.handle_sensor())
 
 
     def update_status(self, status: str, values: Optional[dict] = None):
@@ -155,7 +162,10 @@ class Application:
             self.display.update()
             await asyncio.sleep(0.01)
 
-
+    async def handle_gc(self):
+        while True:
+            gc.collect()
+            await asyncio.sleep(0.01)
 
 
 async def main():
