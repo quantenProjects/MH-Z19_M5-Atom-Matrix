@@ -103,7 +103,7 @@ class Display:
                 self.np[self._rotate_index(i)] = color
         elif self.state == "warmup":
             self._set_black()
-            warmup_time = 60 * 1000
+            warmup_time = 90 * 1000
             current_progress = (len(self.np) * self._ticks() / warmup_time) % len(self.np)
             current_index = math.floor(current_progress)
             for i in range(current_index):

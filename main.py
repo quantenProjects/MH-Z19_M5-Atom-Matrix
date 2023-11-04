@@ -59,6 +59,7 @@ class Application:
 
         self.display.update()
         time.sleep(1)
+        await self.warmup()
 
         if self.webserver:
             await asyncio.gather(self.handle_gc(), self.handle_button_and_display(), self.handle_sensor(), app.start_server(port=80))
@@ -118,7 +119,6 @@ class Application:
             await asyncio.sleep(0.01)
 
     async def handle_button_and_display(self):
-        await self.warmup()
         while True:
             if not self.matrix.get_button_status():
                 in_menu_since = time.ticks_ms()
