@@ -1,0 +1,32 @@
+{% args status, hide_links %}
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CO2 Sensor</title>
+    <meta http-equiv="refresh" content="5" >
+    <style>
+      {% if status["status"] == "valueok" %}
+      body {background-color: #{{ status["color"] }} ; }
+      {% endif %}
+    </style>
+  </head>
+  <body>
+      {% if status["status"].startswith("warmup") %}
+      <h1>Warming up...</h1>
+      {% elif status["status"] == "valueok" %}
+      <h1>{{ status["ppm"] }} ppm CO2</h1>
+      <h2>{{ status["rating"] }}</h2>
+      {% else %}
+      <h1>Error</h1>
+      {% endif %}
+      {% if not hide_links %}
+      <div>
+        <p><a href="/hide_links">Hide links</a></p>
+        <p><a href="/plot">History plot</a></p>
+        <p><a href="/settings">Settings</a></p>
+      </div>
+      {% endif %}
+  </body>
+</html>

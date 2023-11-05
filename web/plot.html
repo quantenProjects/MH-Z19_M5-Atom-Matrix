@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CO2 Chart</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="/chart.umd.js" integrity="sha512-6HrPqAvK+lZElIZ4mZ64fyxIBTsaX5zAFZg2V/2WT+iKPrFzTzvx6QAsLW2OaLwobhMYBog/+bvmIEEGXi0p1w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <style>
+      .chart-container {
+        position: relative;
+        height: 80vh;
+        width: 95vw;
+      }
+    </style>
+</head>
+<body>
+    <div class="panel">
+    <div id="ppmDisplay" style="font-size: 2em;">fetching data....</div>
+        <div class="chart-container">
+            <canvas id="chart"></canvas>
+        </div>
+    </div>
+
+    <script>
+
+        function getColor(ppm) {
+            if (ppm < 800) {
+                return 'green';
+            } else if (ppm < 1000) {
+                return 'yellow';
+            } else if (ppm < 1400) {
+                return 'orange';
+            } else {
+                return 'red';
+            }
+        }
+        let ctx = document.getElementById('chart').getContext('2d');
+        let colors = "black";
+        let chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'CO2 ppm',
+                    data: [],
+                    borderColor: "black",
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        reverse: false,
+                        title: {
+                            display: true,
+                            text: 'Minutes'
+                        }
+                    },
+                    y: {
+                        min: 350,
+                        suggestedMax: 1200,
+                        title: {
+                            display: true,
+                            text: 'CO2 ppm'
+                        }
+                    }
+                }
+            }
+        });
+
+        function fetchData() {
+            fetch('/history')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.length > 120) {
+                        chart.data.labels = data.map((_, i) => (-(data.length-i) / 60).toFixed(1));
+                        chart.options.scales.x.title.text = 'Hours';
+                    } else {
+                        chart.data.labels = data.map((_, i) => -(data.length-i));
+                        chart.options.scales.x.title.text = 'Minutes';
+                    }
+                    chart.data.datasets[0].data = data;
+                    colors = data.map(getColor);
+                    chart.data.datasets[0].backgroundColor = colors;
+                    chart.update();
+                });
+        }
+
+        fetchData();
+        setInterval(fetchData, 60000);
+
+        function updatePPM() {
+            fetch('/json')
+                .then(response => response.json())
+                .then(data => {
+                    var ppmDisplay = document.getElementById('ppmDisplay');
+                    ppmDisplay.innerText = data.ppm + ' ppm ' + data.rating;
+                    ppmDisplay.style.backgroundColor = '#' + data.color;
+                });
+        }
+
+        setInterval(updatePPM, 2000);
+        updatePPM();
+    </script>
+</body>
+</html>

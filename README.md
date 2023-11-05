@@ -1,5 +1,26 @@
 # MH-Z19 CO2 Sensor from Winsen
 
+
+## Install
+
+Developed for `M5STACK_ATOM-20231005-v1.21.0.bin` from https://micropython.org/download/M5STACK_ATOM/
+
+```
+mpremote u0 fs cp *.py :
+mpremote u0 fs cp -r web :
+mpremote u0 fs cp -r utemplate :
+```
+
+## Used Libs
+
+https://github.com/pfalcon/utemplate/
+
+https://github.com/miguelgrinberg/microdot
+
+https://github.com/tuupola/micropython-mpu6886
+
+## old readme:
+
 __MH-Z19B + MH-Z19C driver for MicroPython__
 
 
