@@ -2,84 +2,77 @@
 <html>
 <head>
     <title>CO2 PPM Chart</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/chart.umd.js"></script>
 </head>
 <body>
     <div id="ppmDisplay" style="font-size: 2em;"></div>
     <canvas id="chart"></canvas>
 
     <script>
-        var chart;
-        var ctx = document.getElementById('chart').getContext('2d');
 
         function getColor(ppm) {
             if (ppm < 800) {
                 return 'green';
-            } else if (ppm < 1200) {
+            } else if (ppm < 1000) {
                 return 'yellow';
+            } else if (ppm < 1400) {
+                return 'orange';
             } else {
                 return 'red';
             }
         }
-        function updateChart() {
+        let ctx = document.getElementById('chart').getContext('2d');
+        let colors = "black";
+        let chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'CO2 ppm',
+                    data: [],
+                    borderColor: "black",
+                    tension: 0.1
+                }]
+            },
+            options: {
+                scales: {
+                    x: {
+                        reverse: false,
+                        title: {
+                            display: true,
+                            text: 'Minutes'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'CO2 ppm'
+                        }
+                    }
+                }
+            }
+        });
+
+        function fetchData() {
             fetch('/history.json')
                 .then(response => response.json())
                 .then(data => {
-                    if (chart) {
-                        var labels = data.map((_, i) => -i);
-                        var colors = data.map(getColor);
-                        chart.data.labels = labels;
-                        chart.data.datasets[0].data = data;
-                        chart.update();
-                    } else {
-                        var labels = data.map((_, i) => -i);
-                        var colors = data.map(getColor);
-                        chart = new Chart(ctx, {
-                            type: 'line',
-                            data: {
-                                labels: labels,
-                                datasets: [{
-                                    label: 'CO2 ppm',
-                                    data: data,
-                                    fill: false,
-                                    backgroundColor: colors,
-                                    borderColor: "black",
-                                    tension: 0.1
-                                }]
-                            },
-                            options: {
-                                scales: {
-                                    x: {
-                                        reverse: true,
-                                        title: {
-                                            display: true,
-                                            text: 'minutes ago'
-                                        },
-                                        ticks: {
-                                            callback: function(value, index, values) {
-                                                return Math.abs(value) > 120 ? value/60 + 'h' : value;
-                                            }
-                                        }
-                                    },
-                                    y: {
-                                        title: {
-                                            display: true,
-                                            text: 'CO2 ppm'
-                                        }
-                                    }
-                                }
-                            }
-                        });
-                    }
                     if (data.length > 120) {
-                        chart.data.labels = data.map((_, i) => -i / 60);
+                        chart.data.labels = data.map((_, i) => (-(data.length-i) / 60).toFixed(1));
                         chart.options.scales.x.title.text = 'Hours';
                     } else {
-                        chart.data.labels = data.map((_, i) => -i);
+                        chart.data.labels = data.map((_, i) => -(data.length-i));
                         chart.options.scales.x.title.text = 'Minutes';
                     }
+                    chart.data.datasets[0].data = data;
+                    colors = data.map(getColor);
+                    chart.data.datasets[0].backgroundColor = colors;
+                    chart.update();
                 });
         }
+
+        fetchData();
+        setInterval(fetchData, 60000);
 
         function updatePPM() {
             fetch('/json.json')
@@ -91,10 +84,7 @@
                 });
         }
 
-        setInterval(updateChart, 60000);
         setInterval(updatePPM, 2000);
-
-        updateChart();
         updatePPM();
     </script>
 </body>
