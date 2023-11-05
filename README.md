@@ -2,6 +2,16 @@
 
 __License MIT__
 
+
+## Features
+
+* Color display of CO2 level
+* Binary encoded ppm value
+* WIFI AP with Website
+    * Exact ppm value with color indication and rating
+    * History plot for the last 8 hours (lost on powercycle)
+    * API
+
 ## Install
 
 Developed for `M5STACK_ATOM-20231005-v1.21.0.bin` from https://micropython.org/download/M5STACK_ATOM/
