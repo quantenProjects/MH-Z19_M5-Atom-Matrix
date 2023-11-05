@@ -53,7 +53,7 @@ class Application:
                 return send_file("web/plot.html")
             @app.route('/chart.umd.js')
             async def chartjs(request):
-                return send_file("web/chart.umd.js")
+                return send_file("web/chart.umd.js", max_age=86400)
             @app.route('/settings')
             async def settings_route(request):
                 return send_file("web/settings.html")
@@ -62,8 +62,7 @@ class Application:
                 return self.current_status
             @app.route('/history')
             async def history(request):
-                # TODO remove string conversion
-                return list(map(lambda x: str(x), self.ring_buffer.get_list()))
+                return self.ring_buffer.get_list()
             @app.route('/meminfo')
             async def meminfo(request):
                 free = gc.mem_free()
