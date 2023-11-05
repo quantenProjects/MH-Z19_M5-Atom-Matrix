@@ -1,4 +1,4 @@
-# MH-Z19 CO2 Sensor from Winsen
+# MH-Z19 CO2 Sensor for a M5 Stack Atom Matrix ESP32
 
 __License MIT__
 
@@ -11,6 +11,31 @@ cd src/
 mpremote u0 fs cp -r . :
 mpremote u0 soft-reset # or powercycle
 ```
+
+## Hardware
+
+Connect a MH-Z19 CO2 Sensor to the M5 Stack Atom Matrix:
+
+* 5V to 5V
+* GND to GND
+* TX to G23
+* RX to G33
+
+### BOM
+
+* M5 Stack Atom Matrix with ESP32
+* Winsen MH Z19 CO2 Sensor
+* Maybe a case, e.g. M5Stack ATOM HUB DIY Proto Board Kit
+
+Any other MicroPython Board with 25 Neopixel should also work. You then may need to adapt the pins in the code.
+
+The Atom Matrix is complete, has a case, a button and everything and the only soldering is the 4 pin connection for the CO2 Sensor.
+
+### Sourcing Option in Germany
+
+All parts available at berrybase.de (not sponsored or anything)
+
+Price as of October 2023: about 45€ without case, 55€ with case
 
 ## Used Libs
 
