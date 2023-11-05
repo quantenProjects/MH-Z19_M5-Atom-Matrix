@@ -1,15 +1,25 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>CO2 PPM Chart</title>
+    <title>CO2 Chart</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>CO2 Sensor</title>
     <script src="/chart.umd.js" integrity="sha512-6HrPqAvK+lZElIZ4mZ64fyxIBTsaX5zAFZg2V/2WT+iKPrFzTzvx6QAsLW2OaLwobhMYBog/+bvmIEEGXi0p1w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <style>
+      .chart-container {
+        position: relative;
+        height: 80vh;
+        width: 95vw;
+      }
+    </style>
 </head>
 <body>
-    <div id="ppmDisplay" style="font-size: 2em;"></div>
-    <canvas id="chart"></canvas>
+    <div class="panel">
+    <div id="ppmDisplay" style="font-size: 2em;">fetching data....</div>
+        <div class="chart-container">
+            <canvas id="chart"></canvas>
+        </div>
+    </div>
 
     <script>
 
@@ -38,6 +48,8 @@
                 }]
             },
             options: {
+                responsive: true,
+                maintainAspectRatio: false,
                 scales: {
                     x: {
                         reverse: false,
