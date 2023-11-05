@@ -1,4 +1,4 @@
-{% args status %}
+{% args status, hide_links %}
 <!DOCTYPE html>
 <html lang="en">
   <head>
@@ -21,5 +21,11 @@
       {% else %}
       <h1>Error</h1>
       {% endif %}
+      {% if not hide_links %}
+      <div>
+        <p><a href="/hide_links">Hide links</a></p>
+        <p><a href="/plot">History plot</a></p>
+        <p><a href="/settings">Settings</a></p>
+      </div>
   </body>
 </html>

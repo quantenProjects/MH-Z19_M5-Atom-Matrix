@@ -33,7 +33,7 @@ class Application:
 
     async def run(self):
         if self.webserver:
-            from microdot_asyncio import Microdot
+            from microdot_asyncio import Microdot, send_file
             from microdot_utemplate import render_template, init_templates
             init_templates("web")
 
@@ -44,12 +44,25 @@ class Application:
             app = Microdot()
             @app.route('/')
             async def index(request):
-                return render_template("index.html", self.current_status), {'Content-Type': 'text/html'}
+                return render_template("index.html", self.current_status, False), {'Content-Type': 'text/html'}
+            @app.route('/hide_links')
+            async def hide_links(request):
+                return render_template("index.html", self.current_status, True), {'Content-Type': 'text/html'}
+            @app.route('/plot')
+            async def plot_route(request):
+                return send_file("web/plot.html")
+            @app.route('/chart.umd.js')
+            async def chartjs(request):
+                return send_file("web/chart.umd.js")
+            @app.route('/settings')
+            async def settings_route(request):
+                return send_file("web/settings.html")
             @app.route('/json')
             async def json_route(request):
                 return self.current_status
             @app.route('/history')
             async def history(request):
+                # TODO remove string conversion
                 return list(map(lambda x: str(x), self.ring_buffer.get_list()))
             @app.route('/meminfo')
             async def meminfo(request):
