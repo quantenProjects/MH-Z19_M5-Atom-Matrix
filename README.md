@@ -7,9 +7,9 @@ __License MIT__
 Developed for `M5STACK_ATOM-20231005-v1.21.0.bin` from https://micropython.org/download/M5STACK_ATOM/
 
 ```
-mpremote u0 fs cp *.py :
-mpremote u0 fs cp -r web :
-mpremote u0 fs cp -r utemplate :
+cd src/
+mpremote u0 fs cp -r . :
+mpremote u0 soft-reset # or powercycle
 ```
 
 ## Used Libs
