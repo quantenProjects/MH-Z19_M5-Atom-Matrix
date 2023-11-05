@@ -5,8 +5,9 @@ MH-Z19B + MH-Z19C  driver for MicroPython
 Author: Florian "overflo" Bittner - 12/2020
 Find me here:    https://overflo.info / https://twitter.com/overflo / https://github.com/overflo23
 
+Adapted by https://github.com/quantenProjects/
 
-Version 0.1
+Version 0.2
 License MIT
 
 
