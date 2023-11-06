@@ -57,6 +57,18 @@ class Application:
             @app.route('/settings')
             async def settings_route(request):
                 return send_file("web/settings.html")
+            @app.route('/calibration_on')
+            async def calibration_on(request):
+                self.sensor.enable_self_calibration()
+                return "Self calibration turned on"
+            @app.route('/calibration_off')
+            async def calibration_off(request):
+                self.sensor.disable_self_calibration()
+                return "Self calibration turned off"
+            @app.route('/calibration_now')
+            async def calibration_now(request):
+                self.sensor.zero_point_calibration()
+                return "Calibrated to zero point (400 ppm)"
             @app.route('/json')
             async def json_route(request):
                 return self.current_status
