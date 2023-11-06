@@ -1,3 +1,4 @@
+import os
 import time
 import json
 import ubinascii
@@ -40,6 +41,8 @@ class Application:
             self.ap = network.WLAN(network.AP_IF) # create access-point interface
             self.ap.config(essid='CO2 Sensor ' + ubinascii.hexlify(machine.unique_id()).decode(), password="covidisnotover", authmode=network.AUTH_WPA_WPA2_PSK) # set the SSID of the access point
             self.ap.config(max_clients=10) # set how many clients can connect to the network
+            if self.wifi_on_boot():
+                self.ap.active(True)
 
             app = Microdot()
             @app.route('/')
@@ -69,6 +72,14 @@ class Application:
             async def calibration_now(request):
                 self.sensor.zero_point_calibration()
                 return "Calibrated to zero point (400 ppm)"
+            @app.route('/wifi_on_boot_enable')
+            async def wifi_on_boot_enable(request):
+                self.wifi_on_boot(True)
+                return "Enabled wifi on boot"
+            @app.route('/wifi_on_boot_disable')
+            async def wifi_on_boot_disable(request):
+                self.wifi_on_boot(False)
+                return "Disabled wifi on boot"
             @app.route('/json')
             async def json_route(request):
                 return self.current_status
@@ -97,6 +108,23 @@ class Application:
         prototype_dict = {"status": status, "time": time.ticks_ms()}
         self.current_status = prototype_dict | values
         print(json.dumps(self.current_status))
+
+    def wifi_on_boot(self, set_setting=None):
+        if set_setting is None:
+            try:
+                os.stat("wifi_on_boot")
+                return True
+            except:
+                return False
+        else:
+            try:
+                if set_setting:
+                    with open("wifi_on_boot", "w") as wififile:
+                        wififile.write("enabled")
+                else:
+                    os.remove("wifi_on_boot")
+            except:
+                pass
 
     async def warmup(self):
         if self.warmuped:
